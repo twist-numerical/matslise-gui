@@ -88,10 +88,7 @@ function parse(data: {
     parsed.y[1],
     {
       tolerance: parsed.tolerance,
-      nested: {
-        tolerance: parsed.tolerance,
-        symmetric: data.xSymmetric,
-      },
+      xSymmetric: data.xSymmetric,
     }
   );
 
@@ -99,23 +96,20 @@ function parse(data: {
   return parsedValues;
 }
 
-function addEigenvalueErrors(eigs: number[]): [number, number][] {
-  return eigs.map((E) => [E, matslise!.eigenvalueError(E)]);
-}
-
-function eigenvalues(emin: number, emax: number): [number, number][] {
+function eigenvaluesByIndex(
+  imin: number,
+  imax: number
+): { index: number; value: number; multiplicity: number; error: number }[] {
   if (matslise === undefined) throw new Error("Problem not parsed");
-  return addEigenvalueErrors(matslise.eigenvalues(emin, emax));
-}
-
-function eigenvaluesByIndex(imin: number, imax: number): [number, number][] {
-  if (matslise === undefined) throw new Error("Problem not parsed");
-  return addEigenvalueErrors(matslise.eigenvaluesByIndex(imin, imax));
-}
-
-function firstEigenvalue(): [number, number] {
-  if (matslise === undefined) throw new Error("Problem not parsed");
-  return addEigenvalueErrors([matslise.firstEigenvalue()])[0];
+  const eigenvalues = matslise.eigenvaluesByIndex(imin, imax) as {
+    index: number;
+    value: number;
+    multiplicity: number;
+    error: number;
+  }[];
+  for (const eigenvalue of eigenvalues)
+    eigenvalue.error = matslise.eigenvalueError(eigenvalue.value);
+  return eigenvalues;
 }
 
 function evaluatePotential(): number[][] {
@@ -153,15 +147,13 @@ registerWebworker(async (message: { type: string; data: any }) => {
       });
     case "parse":
       return parse(message.data);
-    case "eigenvalues":
-      return eigenvalues(message.data.emin, message.data.emax);
     case "eigenvaluesByIndex":
       return eigenvaluesByIndex(message.data.imin, message.data.imax);
-    case "firstEigenvalue":
-      return firstEigenvalue();
     case "evaluatePotential":
       return evaluatePotential();
     case "eigenfunction":
       return eigenfunction(message.data.E);
+    default:
+      console.error("Not a known message type: ", message.type);
   }
 });

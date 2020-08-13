@@ -4,15 +4,25 @@ export default class Eigenvalue {
   public index: number;
   public value: number;
   public error: number;
+  public multiplicity: number;
   public problem: Problem;
   public visible: boolean = false;
   public eigenfunctions: number[][][] | null = null;
   public calculatingEigenfunction: boolean = false;
 
-  constructor(index: number, value: number, error: number, problem: Problem) {
-    this.index = index;
-    this.value = value;
-    this.error = error;
+  constructor(
+    eigen: {
+      index: number;
+      value: number;
+      error: number;
+      multiplicity: number;
+    },
+    problem: Problem
+  ) {
+    this.index = eigen.index;
+    this.value = eigen.value;
+    this.multiplicity = eigen.multiplicity;
+    this.error = eigen.error;
     this.problem = problem;
   }
 

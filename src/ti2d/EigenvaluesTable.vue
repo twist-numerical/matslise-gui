@@ -5,6 +5,7 @@ div
       tr
         th
         th #
+        th 
         th Eigenvalue
         th Error
     tbody
@@ -14,6 +15,7 @@ div
           label(
               :for="`eigenvalue-${eigenvalue.index}`")
         td {{ eigenvalue.index }}
+        td {{ eigenvalue.multiplicity }}
         td {{ eigenvalue.value.toPrecision(13) }}
         td {{ eigenvalue.error === null ? '' : eigenvalue.error == 0 ? 0 : eigenvalue.error.toExponential(2) }}
   div.mb-4.text-center(v-if="eigenvalues !== null")

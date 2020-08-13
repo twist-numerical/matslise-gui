@@ -27,6 +27,7 @@ export default class Problem {
     xSymmetric: boolean;
     ySymmetric: boolean;
   } = null;
+  private historyID: number = 0;
   public history: HistoryEntry[] = [];
 
   constructor() {
@@ -54,23 +55,27 @@ export default class Problem {
   }
 
   async parse() {
-    this.parsed = await this.addToHistory(
-      `Initialising problem`,
+    this.parsed = await this.startCalculation(
+      this.addToHistory(
+        `Initialising problem`,
+        this.worker.postMessage({
+          type: "parse",
+          data: {
+            potential: this.potential,
+            x: this.x,
+            y: this.y,
+            tolerance: this.tolerance,
+            xSymmetric: this.xSymmetric,
+            ySymmetric: this.ySymmetric,
+          },
+        })
+      )
+    );
+    this.potentialData = await this.startCalculation(
       this.worker.postMessage({
-        type: "parse",
-        data: {
-          potential: this.potential,
-          x: this.x,
-          y: this.y,
-          tolerance: this.tolerance,
-          xSymmetric: this.xSymmetric,
-          ySymmetric: this.ySymmetric,
-        },
+        type: "evaluatePotential",
       })
     );
-    this.potentialData = await this.worker.postMessage({
-      type: "evaluatePotential",
-    });
   }
 
   reset() {
@@ -78,57 +83,55 @@ export default class Problem {
     this.parsed = null;
   }
 
-  async addToHistory(name: string, action: Promise<any>): Promise<any> {
-    const entry: HistoryEntry = {
-      name,
-      time: null,
-    };
-    this.history.push(entry);
-    const start = +new Date();
+  async startCalculation(action: Promise<any>): Promise<any> {
+    this.calculating = true;
     const result = await action;
-    entry.time = +new Date() - start;
+    this.calculating = false;
     return result;
   }
 
-  async eigenvalues(emin: number, emax: number): Promise<[number, number][]> {
-    return await this.addToHistory(
-      `Eigenvalues in [${emin.toPrecision(3)}, ${emax.toPrecision(3)}]`,
-      this.worker.postMessage({
-        type: "eigenvalues",
-        data: { emin, emax },
-      })
-    );
+  async addToHistory(name: string, action: Promise<any>): Promise<any> {
+    const entry: HistoryEntry = {
+      name,
+      time: 0,
+    };
+    const currentHistoryID = ++this.historyID;
+    this.history.push(entry);
+    const start = +new Date();
+    const updateTime = setInterval(() => {
+      if (currentHistoryID != this.historyID) clearInterval(updateTime);
+      else entry.time = +new Date() - start;
+    }, 1000);
+    const result = await action;
+    clearInterval(updateTime);
+    entry.time = +new Date() - start;
+    return result;
   }
 
   async eigenvaluesByIndex(
     imin: number,
     imax: number
   ): Promise<[number, number][]> {
-    return await this.addToHistory(
-      `Eigenvalues`,
-      this.worker.postMessage({
-        type: "eigenvaluesByIndex",
-        data: { imin, imax },
-      })
-    );
-  }
-
-  async firstEigenvalue(): Promise<[number, number]> {
-    return await this.addToHistory(
-      `First eigenvalues`,
-      await this.worker.postMessage({
-        type: "firstEigenvalue",
-      })
+    return await this.startCalculation(
+      this.addToHistory(
+        `Eigenvalues`,
+        this.worker.postMessage({
+          type: "eigenvaluesByIndex",
+          data: { imin, imax },
+        })
+      )
     );
   }
 
   async eigenfunction(E: number): Promise<number[][][]> {
-    return await this.addToHistory(
-      `Eigenfunction of ${E.toPrecision(4)}`,
-      await this.worker.postMessage({
-        type: "eigenfunction",
-        data: { E },
-      })
+    return await this.startCalculation(
+      this.addToHistory(
+        `Eigenfunction of ${E.toPrecision(4)}`,
+        this.worker.postMessage({
+          type: "eigenfunction",
+          data: { E },
+        })
+      )
     );
   }
 }

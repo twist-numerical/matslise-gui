@@ -18,44 +18,41 @@
 
 <script lang="ts">
 import Vue from "vue";
+import Problem from "./Problem";
 
-type Problem = {
+type ProblemStatement = {
   name: string;
-  symmetric: boolean;
+  xSymmetric: boolean;
   potential: string;
   x: [string, string];
-  ymin: [string, string];
-  ymax: [string, string];
+  y: [string, string];
   tolerance: string;
 };
 
-const problems: Problem[] = [
+const problems: ProblemStatement[] = [
   {
-    name: "Mathieu",
-    symmetric: false,
-    potential: "2*cos(2*x)",
-    x: ["0", "pi"],
-    ymin: ["1", "0"],
-    ymax: ["1", "0"],
-    tolerance: "1e-5"
+    name: "Ixaru",
+    xSymmetric: true,
+    potential: "(1+x^2)*(1+y^2)",
+    x: ["-5.5", "5.5"],
+    y: ["-5.5", "5.5"],
+    tolerance: "1e-6"
   },
   {
-    name: "Hydrogen",
-    symmetric: false,
-    potential: "-1/x + 2/x^2",
-    x: ["0", "300"],
-    ymin: ["1", "0"],
-    ymax: ["1", "0"],
-    tolerance: "1e-5"
+    name: "Hénon-Heiles",
+    xSymmetric: true,
+    potential: "(x^2 + y^2) + 1/sqrt(20)*y*(x^2 - y^2/3)",
+    x: ["-6", "6"],
+    y: ["-6", "6"],
+    tolerance: "1e-6"
   },
   {
-    name: "Coffey Evans",
-    symmetric: true,
-    potential: "-2*20*cos(2*x)+20^2*sin(2*x)^2",
-    x: ["-pi/2", "pi/2"],
-    ymin: ["1", "0"],
-    ymax: ["1", "0"],
-    tolerance: "1e-5"
+    name: "Coupled 6° anharmonic oscillators",
+    xSymmetric: true,
+    potential: "(x^2 + y^2) + 1/sqrt(20)*y*(x^2 - y^2/3)",
+    x: ["-6", "6"],
+    y: ["-6", "6"],
+    tolerance: "1e-6"
   }
 ];
 
@@ -68,15 +65,15 @@ export default Vue.extend({
     hideModal() {
       this.$emit("input", false);
     },
-    selectProblem(problem: Problem) {
+    selectProblem(ps: ProblemStatement) {
       // Non reactive copy
-      problem = JSON.parse(JSON.stringify(problem));
-      this.problem.symmetric = problem.symmetric;
-      this.problem.potential = problem.potential;
-      this.problem.x = problem.x.map(s => "" + s);
-      this.problem.ymin = problem.ymin;
-      this.problem.ymax = problem.ymax;
-      this.problem.tolerance = problem.tolerance;
+      ps = JSON.parse(JSON.stringify(ps));
+      const problem = this.problem as Problem;
+      problem.potential = ps.potential;
+      problem.xSymmetric = ps.xSymmetric;
+      problem.x = ps.x;
+      problem.y = ps.y;
+      problem.tolerance = ps.tolerance;
       this.hideModal();
       this.$emit("problem-updated");
     }

@@ -3,7 +3,7 @@ div.container
   problem-selector(
       v-model="selectProblem",
       :problem="problem",
-      @problem-updated="calculate()")
+      @problem-updated="reset()")
   .row
     .col-12
       h1 Matslise
@@ -186,24 +186,15 @@ export default Vue.extend({
     async moreEigenvalues() {
       let eigenvaluesFound;
       if (this.eigenvalues === null) {
-        eigenvaluesFound = await this.problem.eigenvaluesByIndex(0, 2);
+        eigenvaluesFound = await this.problem.eigenvaluesByIndex(0, 6);
         this.eigenvalues = [];
       } else {
-        const max = this.eigenvalues.length - 1;
-        const min = Math.max(0, max - 5);
-        eigenvaluesFound = await this.problem.eigenvalues(
-          this.eigenvalues[max].value,
-          2 * this.eigenvalues[max].value - this.eigenvalues[min].value
-        );
+        const last = this.eigenvalues[this.eigenvalues.length - 1];
+        const i = last.index + last.multiplicity;
+        eigenvaluesFound = await this.problem.eigenvaluesByIndex(i, i + 6);
       }
-      const self = this;
-      for (const [value, error] of eigenvaluesFound) {
-        if (!this.containsEigenvalue(value)) {
-          const index = this.eigenvalues!.length;
-          this.eigenvalues.push(
-            new Eigenvalue(index, value, error, this.problem)
-          );
-        }
+      for (const eigen of eigenvaluesFound) {
+        this.eigenvalues.push(new Eigenvalue(eigen, this.problem));
       }
     }
   }
