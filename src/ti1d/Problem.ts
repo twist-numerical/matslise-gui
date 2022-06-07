@@ -1,20 +1,22 @@
+import { i } from "mathjs";
 import MatsliseModule, {
   AbstractMatslise,
   MatsliseHalf,
+  Eigenfunction,
   Matslise,
+  SturmLiouville,
 } from "../lib/matslise";
-import math from "mathjs-expression-parser";
-
-const evaluatePair = ([a, b]: [string, string]): [number, number] => {
-  return [math.eval(a), math.eval(b)];
-};
+import { evalAll, evalFunction, evalVal } from "./evaluate";
 
 export default class Problem {
   public Matslise: typeof Matslise | null = null;
   public MatsliseHalf: typeof MatsliseHalf | null = null;
-  public matslise: AbstractMatslise | null = null;
+  public SturmLiouville: typeof SturmLiouville | null = null;
+  public matslise: AbstractMatslise | SturmLiouville | null = null;
   public parsed: {
-    potential: (x: number) => number;
+    p: (x: number) => number;
+    q: (x: number) => number;
+    w: (x: number) => number;
     x: [number, number];
     ymin: [number, number];
     ymax: [number, number];
@@ -22,9 +24,12 @@ export default class Problem {
     right: [number, number];
     tolerance: number;
     symmetric: boolean;
+    schrodinger: boolean;
   } | null = null;
 
-  public potential = "0";
+  public p = "1";
+  public q = "0";
+  public w = "1";
   public x: [string, string] = ["0", "pi"];
   public ymin: [string, string] = ["1", "0"];
   public ymax: [string, string] = ["1", "0"];
@@ -40,6 +45,7 @@ export default class Problem {
     this.reset();
     this.Matslise = null;
     this.MatsliseHalf = null;
+    this.SturmLiouville = null;
     this.initMatslise();
   }
 
@@ -47,42 +53,70 @@ export default class Problem {
     new MatsliseModule().then((module) => {
       this.Matslise = module.Matslise;
       this.MatsliseHalf = module.MatsliseHalf;
+      this.SturmLiouville = module.SturmLiouville;
     });
+  }
+
+  setMatslise() {
+    const parsed = this.parsed;
+    if (!parsed || !this.MatsliseHalf || !this.Matslise || !this.SturmLiouville)
+      return;
+
+    if (parsed.schrodinger) {
+      if (parsed.symmetric) {
+        this.matslise = new this.MatsliseHalf(
+          parsed.q,
+          parsed.x[1],
+          parsed.tolerance
+        );
+      } else {
+        this.matslise = new this.Matslise(
+          parsed.q,
+          parsed.x[0],
+          parsed.x[1],
+          parsed.tolerance
+        );
+      }
+    } else {
+      this.matslise = new this.SturmLiouville(
+        parsed.p,
+        parsed.q,
+        parsed.w,
+        parsed.x[0],
+        parsed.x[1],
+        parsed.tolerance
+      );
+    }
+    this.toDelete.push(this.matslise);
   }
 
   parse() {
     if (this.Matslise === null || this.MatsliseHalf === null)
       throw new Error("Wait until problem.Matslise !== null");
     if (this.matslise !== undefined) this.reset();
-    const compiledPotential = math.compile(this.potential);
-    const potential = (x: number) => compiledPotential.eval({ x });
 
-    const ymin = evaluatePair(this.ymin);
-    const ymax = evaluatePair(this.ymax);
-    const x = evaluatePair(this.x);
+    const ifSymmetric = (f: (x: number) => number): ((x: number) => number) => {
+      if (this.symmetric) return (x) => f(Math.abs(x));
+      return f;
+    };
+
+    const ymin = evalAll(this.ymin);
+    const ymax = evalAll(this.ymax);
+    const x = evalAll(this.x);
     this.parsed = {
-      potential,
+      p: ifSymmetric(evalFunction(this.p)),
+      q: ifSymmetric(evalFunction(this.q)),
+      w: ifSymmetric(evalFunction(this.w)),
       x: this.symmetric ? [-x[1], x[1]] : x,
       ymin: this.symmetric ? ymax : ymin,
       ymax,
       left: this.symmetric ? [ymax[1], -ymax[0]] : [ymin[1], -ymin[0]],
       right: [ymax[1], -ymax[0]],
-      tolerance: math.eval(this.tolerance),
+      tolerance: evalVal(this.tolerance),
       symmetric: this.symmetric,
+      schrodinger: this.p == "1" && this.w == "1",
     };
-    this.matslise = this.parsed.symmetric
-      ? new this.MatsliseHalf(
-          potential,
-          this.parsed.x[1],
-          this.parsed.tolerance
-        )
-      : new this.Matslise(
-          potential,
-          this.parsed.x[0],
-          this.parsed.x[1],
-          this.parsed.tolerance
-        );
-    this.toDelete.push(this.matslise!);
+    this.setMatslise();
   }
 
   reset() {
@@ -92,14 +126,21 @@ export default class Problem {
       obj.delete();
   }
 
-  eigenvaluesByIndex(imin: number, imax: number): [number, number][] {
+  eigenpairsByIndex(
+    imin: number,
+    imax: number
+  ): { index: number; eigenvalue: number; eigenfunction: Eigenfunction }[] {
     if (this.matslise === null || this.parsed === null) this.parse();
-    return this.matslise!.eigenvaluesByIndex(
+    const eigenpairs = this.matslise!.eigenpairsByIndex(
       imin,
       imax,
       this.parsed!.left,
       this.parsed!.right
-    ).map(({ first, second }) => [first, second]);
+    );
+    eigenpairs.forEach(({ eigenfunction }) =>
+      this.toDelete.push(eigenfunction)
+    );
+    return eigenpairs;
   }
 
   eigenvalueError(index: number, E: number): number {
@@ -108,18 +149,6 @@ export default class Problem {
       E,
       this.parsed!.left,
       this.parsed!.right,
-      index
-    );
-  }
-
-  eigenfunction(index: number, E: number, x: number[]): number[] {
-    if (this.matslise === null || this.parsed === null) this.parse();
-
-    return this.matslise!.computeEigenfunction(
-      E,
-      this.parsed!.left,
-      this.parsed!.right,
-      x,
       index
     );
   }

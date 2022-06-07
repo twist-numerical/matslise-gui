@@ -1,5 +1,6 @@
 import Problem from "./Problem";
 import Color = require("color");
+import { Eigenfunction } from "../lib/matslise";
 
 export interface Eigenvalue {
   index: number;
@@ -7,8 +8,9 @@ export interface Eigenvalue {
   error: number;
   visible: boolean;
   color: string;
-  _eigenfunction?: number[];
-  readonly eigenfunction: number[];
+  eigenfunction: Eigenfunction;
+  readonly eigenfunctionValues: number[];
+  _eigenfunctionValues?: number[];
 }
 
 export default class Controller {
@@ -45,7 +47,7 @@ export default class Controller {
       this.eigenvalues = [];
       this.problem.parse();
       this.xValues = [];
-      const n = 120;
+      const n = 189;
       const [xmin, xmax] = this.problem.parsed!.x;
       for (let i = 0; i < n; ++i) {
         this.xValues.push(
@@ -67,7 +69,7 @@ export default class Controller {
       const self = this;
       const start = this.eigenvalues!.length;
       const end = this.eigenvalues!.length + 10;
-      const eigenvalues = this.problem.eigenvaluesByIndex(start, end);
+      const eigenvalues = this.problem.eigenpairsByIndex(start, end);
       if (eigenvalues.length != end - start)
         this.errors.push(
           `Not all eigenvalues between indices ${start} and ${end} were found.`
@@ -76,7 +78,7 @@ export default class Controller {
         this.eigenvalues!.length == 0
           ? -1
           : this.eigenvalues![this.eigenvalues!.length - 1].index;
-      for (const [index, value] of eigenvalues) {
+      for (const { index, eigenvalue: value, eigenfunction } of eigenvalues) {
         if (index > prevIndex + 1) {
           this.errors.push(
             `Missing eigenvalue found before ${index}: ${value.toPrecision(5)}`
@@ -90,15 +92,14 @@ export default class Controller {
         this.eigenvalues!.push({
           index,
           value,
+          eigenfunction,
           error: this.problem.eigenvalueError(index, value),
           visible: false,
           color: Color.hsv(1.61803398875 * index * 100, 100, 80).string(),
-          get eigenfunction(): number[] {
-            if (this._eigenfunction) return this._eigenfunction;
-            return (this._eigenfunction = self.problem.eigenfunction(
-              index,
-              value,
-              self.xValues
+          get eigenfunctionValues(): number[] {
+            if (this._eigenfunctionValues) return this.eigenfunctionValues;
+            return (this._eigenfunction = eigenfunction(self.xValues).map(
+              ([f, df]) => f
             ));
           },
         });

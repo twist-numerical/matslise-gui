@@ -101,15 +101,15 @@ export default Vue.extend({
 
       eigenvaluesSorted
         .map(i => eigenvalueMap.get(i))
-        .forEach(({ index, eigenfunction, color }: Eigenvalue, i: number) => {
+        .forEach(({ index, eigenfunctionValues, color }: Eigenvalue, i: number) => {
           const dataset = this.chart.data.datasets[i];
           dataset.borderColor = color;
           dataset.index = index;
-          ensureLength(dataset.data, eigenfunction.length, () => ({
+          ensureLength(dataset.data, eigenfunctionValues.length, () => ({
             x: 0,
             y: 0
           }));
-          eigenfunction.forEach((y: number, j: number) => {
+          eigenfunctionValues.forEach((y: number, j: number) => {
             const point = dataset.data[j];
             point.x = this.x[j];
             point.y = y;

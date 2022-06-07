@@ -1,12 +1,25 @@
-declare class AbstractMatslise {
-    delete(): void;
+type Eigenfunction = {
+    (x: number): [number, number];
 
+    (x: number[]): [number, number][];
+
+    delete(): void;
+};
+
+declare class AbstractMatslise {
     eigenvaluesByIndex(
         imin: number,
         imax: number,
         left: [number, number],
         right: [number, number]
-    ): { first: number; second: number }[];
+    ): { index: number; eigenvalue: number }[];
+
+    eigenpairsByIndex(
+        imin: number,
+        imax: number,
+        left: [number, number],
+        right: [number, number]
+    ): { index: number; eigenvalue: number; eigenfunction: Eigenfunction }[];
 
     eigenvalueError(
         E: number,
@@ -43,61 +56,45 @@ declare class MatsliseHalf extends AbstractMatslise {
     );
 }
 
-declare class AbstractMatslise2D {
+declare class SturmLiouville {
+    constructor(
+        p: (x: number) => number,
+        q: (x: number) => number,
+        r: (x: number) => number,
+        xmin: number,
+        xmax: number,
+        tolerance: number
+    );
 
-    eigenvalue(E: number): [number, number];
+    eigenvaluesByIndex(
+        imin: number,
+        imax: number,
+        left: [number, number],
+        right: [number, number]
+    ): { index: number; eigenvalue: number }[];
 
-    eigenvalues(emin: number, emax: number): { index: number, value: number, multiplicity: number }[];
+    eigenpairsByIndex(
+        imin: number,
+        imax: number,
+        left: [number, number],
+        right: [number, number]
+    ): { index: number; eigenvalue: number; eigenfunction: Eigenfunction }[];
 
-    eigenvaluesByIndex(imin: number, imax: number): { index: number, value: number, multiplicity: number }[];
-
-    eigenvalueError(E: number): number;
-
-    computeEigenfunction(E: number, x: number[], y: number[]): number[][][];
+    eigenvalueError(
+        E: number,
+        left: [number, number],
+        right: [number, number],
+        index?: number
+    ): number;
 
     delete(): void;
 }
 
-declare class Matslise2D extends AbstractMatslise2D {
-    constructor(
-        potential: (x: number, y: number) => number,
-        xmin: number,
-        xmax: number,
-        ymin: number,
-        ymax: number,
-        options: {
-            tolerance?: number;
-            xSectorCount?: number;
-            xTolerance?: number;
-            ySectorCount?: number;
-            yTolerance?: number;
-            xSymmetric?: boolean;
-        }
-    );
-}
-
-declare class Matslise2DHalf extends AbstractMatslise2D {
-    constructor(
-        potential: (x: number, y: number) => number,
-        xmin: number,
-        xmax: number,
-        ymax: number,
-        options: {
-            tolerance?: number;
-            xSectorCount?: number;
-            xTolerance?: number;
-            ySectorCount?: number;
-            yTolerance?: number;
-            xSymmetric?: boolean;
-        }
-    );
-}
 
 declare interface matslise {
     Matslise: typeof Matslise;
     MatsliseHalf: typeof MatsliseHalf;
-    Matslise2D: typeof Matslise2D;
-    Matslise2DHalf: typeof Matslise2DHalf;
+    SturmLiouville: typeof SturmLiouville;
 }
 
 export default class MatsliseModule {
